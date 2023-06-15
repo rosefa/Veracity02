@@ -1,5 +1,5 @@
 import Nettoyage as net
-import nltk
+#import nltk
 import pandas as pd
 import numpy as np 
 import cv2 as cv
@@ -43,9 +43,9 @@ import contractions
 from bs4 import BeautifulSoup
 from sklearn import preprocessing
 from keras.preprocessing.text import Tokenizer
-from nltk import word_tokenize, sent_tokenize, pos_tag
-from nltk.corpus import stopwords
-from nltk.stem import LancasterStemmer, WordNetLemmatizer,PorterStemmer
+#from nltk import word_tokenize, sent_tokenize, pos_tag
+#from nltk.corpus import stopwords
+#from nltk.stem import LancasterStemmer, WordNetLemmatizer,PorterStemmer
 from tensorflow.keras.layers import TextVectorization
 import tqdm
 from sklearn.model_selection import GridSearchCV
@@ -183,10 +183,10 @@ def f1_m(y_true, y_pred):
     recall = recall_m(y_true, y_pred)
     return 2*((precision*recall)/(precision+recall+K.epsilon()))
 
-print("DOWNLOAD stopwords and ...")
-nltk.download('stopwords')
-nltk.download('punkt')
-print("DOWNLOAD stopwords and OK")
+#print("DOWNLOAD stopwords and ...")
+#nltk.download('stopwords')
+#nltk.download('punkt')
+#print("DOWNLOAD stopwords and OK")
 '''
 def preProcessCorpus(docs):
   norm_docs = []
