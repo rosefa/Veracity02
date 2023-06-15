@@ -39,15 +39,15 @@ from tensorflow.keras.layers import Dense
 from tensorflow.keras import layers
 from keras.layers import Bidirectional,LSTM, Add,GRU,MaxPooling1D, GlobalMaxPool1D, GlobalMaxPooling1D, Dropout,Conv1D,Embedding,Flatten, Input, Layer,GlobalAveragePooling1D,Activation,Lambda,LayerNormalization, Concatenate, Average,AlphaDropout,Reshape, multiply
 
-import contractions
-from bs4 import BeautifulSoup
+#import contractions
+#from bs4 import BeautifulSoup
 from sklearn import preprocessing
 from keras.preprocessing.text import Tokenizer
 #from nltk import word_tokenize, sent_tokenize, pos_tag
 #from nltk.corpus import stopwords
 #from nltk.stem import LancasterStemmer, WordNetLemmatizer,PorterStemmer
 from tensorflow.keras.layers import TextVectorization
-import tqdm
+#import tqdm
 from sklearn.model_selection import GridSearchCV
 from scikeras.wrappers import KerasClassifier
 from sklearn.metrics import roc_curve, auc
