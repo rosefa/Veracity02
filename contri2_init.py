@@ -343,13 +343,14 @@ class CustomConstraint(Constraint):
         self.k = k
         self.s = s
         np.random.rand2 = lambda *args, dtype=np.float32: np.random.rand(*args).astype(dtype)
-        f1 = np.random.rand2(s,s)
+        f1 = np.random.rand2(s,s) #une matrice de nombres réeles aléatoires de dimension 5
         custom_weights = np.array((f1, f1, f1))
         f2 = custom_weights.transpose(1, 2, 0)
-        custom_weights = np.tile(f2, (k, 1, 1))
-        T2 = np.reshape(custom_weights,(k,s,s,3))
-        custom_weights = T2.transpose(1, 2, 3, 0)
-        self.custom_weights = tf.Variable(custom_weights)
+        self.custom_weights = tf.Variable(f2)
+        #custom_weights = np.tile(f2, (k, 1, 1))
+        #T2 = np.reshape(custom_weights,(k,s,s,3))
+        #custom_weights = T2.transpose(1, 2, 3, 0)
+        #self.custom_weights = tf.Variable(custom_weights)
     def __call__(self, weights):
         weights = self.custom_weights
         row_index = self.s//2
@@ -363,7 +364,13 @@ class CustomConstraint(Constraint):
         new_value = -1
         weights[row_index,col_index,:,:].assign(new_value)
         return weights
-#def fake_virtual(k=3,s=5):
+
+class CenterSumConstraint(Constraint):
+    def __call__(self, weights):
+        weights[len(weights) // 2, len(weights) // 2]=0
+        weights = weights / (weights_sum + 1e-8)  # Normalisation des poids
+        weights=tf.tensor_scatter_nd_update(weights, [[len(weights) // 2, len(weights) // 2]], [-1])
+        return weights
 def fake_virtual():
     input1 = Input(shape=(100,))
     embedding_layer = Embedding(len(word_index)+1,100,embeddings_initializer=keras.initializers.Constant(embedding_matrix),input_length=100,trainable=False)(input1)
@@ -374,7 +381,7 @@ def fake_virtual():
     #final_model_out = model.compile(optimizer="adam",loss="sparse_categorical_crossentropy",metrics=["accuracy","precision", f1_m])
     #return model
     input2 = Input(shape=(224,224,3))
-    conv_layer = Conv2D(filters=3, kernel_size=5,kernel_constraint=CustomConstraint(3,5), padding='same', use_bias=False)(input2)
+    conv_layer = Conv2D(filters=3, kernel_size=5,kernel_constraint=CenterSumConstraint(), padding='same', use_bias=False)(input2)
     model = Conv2D(filters=16,kernel_size=3, padding='same',use_bias=False)(conv_layer)
     model = BatchNormalization(axis=3, scale=False)(model)
     model = Activation('relu')(model)
