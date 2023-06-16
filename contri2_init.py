@@ -367,8 +367,8 @@ class CustomConstraint(Constraint):
 
 class CenterSumConstraint(Constraint):
     def __call__(self, weights):
-        value = weights.value().numpy()
-        long = len(value)
+        #value = weights.value().numpy()
+        long = len(weights)
         weights[long // 2, long // 2]=0
         weights = weights / (weights_sum + 1e-8)  # Normalisation des poids
         weights=tf.tensor_scatter_nd_update(weights, [[long // 2, long // 2]], [-1])
