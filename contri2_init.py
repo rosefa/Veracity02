@@ -368,7 +368,8 @@ class CustomConstraint(Constraint):
 class CenterSumConstraint(Constraint):
     def __call__(self, weights):
         #value = weights.value().numpy()
-        rows, cols = weights.shape
+        print(weights.shape)
+        #rows, cols = weights.shape
         #long = len(weights)
         weights[rows // 2, cols // 2]=0
         weights = weights / (weights_sum + 1e-8)  # Normalisation des poids
