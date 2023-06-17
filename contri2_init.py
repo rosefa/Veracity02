@@ -368,12 +368,12 @@ class CustomConstraint(Constraint):
 class CenterSumConstraint(Constraint):
     def __call__(self, weights):
         #value = weights.value().numpy()
-        print(weights.shape)
-        #rows, cols = weights.shape
+        #print(weights.shape)
+        dim1, dim2, dim3, dim4  = weights.shape
         #long = len(weights)
-        weights[rows // 2, cols // 2]=0
+        weights[dim1 // 2, dim2 // 2, dim1 // 3, dim2 // 4]=0
         weights = weights / (weights_sum + 1e-8)  # Normalisation des poids
-        weights=tf.tensor_scatter_nd_update(weights, [[rows // 2, cols // 2]], [-1])
+        weights=tf.tensor_scatter_nd_update(weights, [[dim1 // 2, dim2 // 2, dim1 // 3, dim2 // 4]], [-1])
         return weights
 def fake_virtual():
     input1 = Input(shape=(100,))
