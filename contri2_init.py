@@ -425,7 +425,7 @@ for train_indices, val_indices in kfold.split(myTrain_Glove):
     checkpoint = tf.keras.callbacks.ModelCheckpoint(save_dir+'model_'+str(fold_var)+'.h5', monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
     callbacks_list = [checkpoint]
     history = model.fit([train_features1,train_features2],train_labels, epochs=10, batch_size=70,callbacks=callbacks_list, validation_data=([val_features1, val_features2],val_labels))
-    model.load_weights("/saved_models/model_"+str(fold_var)+".h5")
+    model.load_weights("/model_"+str(fold_var)+".h5")
     results = model.evaluate([val_features1, val_features2],val_labels,verbose=0)
     results = dict(zip(model.metrics_names,results))
     VALIDATION_ACCURACY.append(results['accuracy'])
