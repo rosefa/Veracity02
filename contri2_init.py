@@ -402,8 +402,8 @@ def fake_virtual():
     final_model = Model(inputs=[input1,input2], outputs=final_model_output)
     #final_model.compile(optimizer="adam",loss="sparse_categorical_crossentropy",metrics=["accuracy", f1_m])
     return final_model
-
-
+##########################STATISTIQUES DESCRIPTIVES###################################
+'''
 #kf = KFold(n_splits = 5)
 #skf = StratifiedKFold(n_splits = 5, shuffle = True) 
 kfold = KFold(n_splits=5, shuffle=True)
@@ -454,7 +454,7 @@ for train_indices, val_indices in kfold.split(myTrain_Glove):
     epochs = range(1, len(loss) + 1)
     plt.figure()
     plt.plot(epochs, loss, 'b', label='loss')
-    plt.plot(epochs, val_loss, 'r', label='Val loss',linestyle='.')
+    plt.plot(epochs, val_loss, 'r', label='Val loss',linestyle='--')
     plt.title('Loss et Val Loss')
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
@@ -463,7 +463,7 @@ for train_indices, val_indices in kfold.split(myTrain_Glove):
     
     plt.figure()
     plt.plot(fpr, tpr, color='darkorange', lw=2, label='Courbe ROC (AUC = %0.2f)' % roc_auc)
-    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='-')
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
     plt.xlabel('Taux de faux positifs')
@@ -476,6 +476,7 @@ for train_indices, val_indices in kfold.split(myTrain_Glove):
 
 print(VALIDATION_ACCURACY)
 print(VALIDATION_LOSS)
+'''
 '''
 print(len(labelText))
 print(len(textListe))
