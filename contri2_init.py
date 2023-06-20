@@ -403,6 +403,13 @@ def fake_virtual():
     #final_model.compile(optimizer="adam",loss="sparse_categorical_crossentropy",metrics=["accuracy", f1_m])
     return final_model
 ##########################STATISTIQUES DESCRIPTIVES###################################
+def longueurDoc(docs):
+    longTab = []
+    for doc in docs:
+        longTab.append(len(doc))
+    return longTab
+print(stats.mode(longueurDoc(docsClean)))
+print(stats.describe(longueurDoc(docsClean)))
 '''
 #kf = KFold(n_splits = 5)
 #skf = StratifiedKFold(n_splits = 5, shuffle = True) 
