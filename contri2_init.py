@@ -430,8 +430,13 @@ for train_indices, val_indices in kfold.split(myTrain_Glove):
     results = dict(zip(model.metrics_names,results))
     VALIDATION_ACCURACY.append(results['accuracy'])
     VALIDATION_LOSS.append(results['loss'])
-    y_pred = model.predict([myTrain_Glove[val_index],imageListe[val_index]]).ravel()
-    tf.keras.backend.clear_session()
+    y_pred = model.predict([val_features1, val_features2]).ravel()
+    #y_pred = model.predict([val_features1, val_features2])
+    # Calculez les taux de faux positifs (FPR) et les taux de vrais positifs (TPR)
+    fpr, tpr, _ = roc_curve(val_labels, y_pred)
+    # Calculez l'aire sous la courbe ROC (AUC)
+    roc_auc = auc(fpr, tpr)
+tf.keras.backend.clear_session()
     
     accuracy = history.history['accuracy']
     val_accuracy = history.history['val_accuracy']
