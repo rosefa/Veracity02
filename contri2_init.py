@@ -409,7 +409,7 @@ def fake_virtual():
 kfold = KFold(n_splits=5, shuffle=True)
 print('DEBUT FORMATION DU MODEL........')
 VALIDATION_ACCURACY = []
-VALIDAITON_LOSS = []
+VALIDATION_LOSS = []
 save_dir = '/saved_models/'
 fold_var = 1
 
