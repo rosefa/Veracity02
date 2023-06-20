@@ -436,8 +436,7 @@ for train_indices, val_indices in kfold.split(myTrain_Glove):
     fpr, tpr, _ = roc_curve(val_labels, y_pred)
     # Calculez l'aire sous la courbe ROC (AUC)
     roc_auc = auc(fpr, tpr)
-tf.keras.backend.clear_session()
-    
+    tf.keras.backend.clear_session()
     accuracy = history.history['accuracy']
     val_accuracy = history.history['val_accuracy']
     epochs = range(1, len(accuracy) + 1)
