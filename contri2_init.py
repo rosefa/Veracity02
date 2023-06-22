@@ -242,20 +242,6 @@ def clean(doc):
     doc = [token.lemma_.lower() for token in doc if (not token.is_punct) and (not token.is_space) and (not token.like_url) and (not token.is_stop) and len(token) > 1]
     doc = ' '.join([x for x in doc])
     return doc
-docsClean = []
-i=0
-print("DEBUT Traitement de text ...")
-while i<len(textListe):
-    docs = nlp(textListe[i])
-    docsClean.append(clean(docs))
-    print(i)
-    i=i+1
-print("FIN Traitement de text")
-#trainX = preProcessCorpus(x_train)
-#valX = preProcessCorpus(x_test)
-#myTrain_Glove,myVal_Glove,word_index, embedding_matrix = prepare_model_input(x_train, x_test)
-myTrain_Glove, word_index, embedding_matrix = prepare_model_input(docsClean)
-#K.clear_session()
 
 ##########INITIALISATION DES FILTRES###########
 ###création d'une matrice de valeurs aleatoires de type float###
@@ -376,11 +362,11 @@ class CenterSumConstraint(Constraint):
         weights = weights / (weights_sum + 1e-8)  # Normalisation des poids
         weights=tf.tensor_scatter_nd_update(weights, [[dim1 // 2, dim2 // 2, dim1 // 3, dim2 // 4]], [-1])
         return weights
-def fake_virtual():
+def fake_virtual(cells,neurons):
     input1 = Input(shape=(100,))
     embedding_layer = Embedding(len(word_index)+1,100,embeddings_initializer=keras.initializers.Constant(embedding_matrix),input_length=100,trainable=False)(input1)
-    model1 = Bidirectional(LSTM(32))(embedding_layer)
-    out1 = Dense(64, activation='softmax')(model1)
+    model1 = Bidirectional(LSTM(cells))(embedding_layer)
+    out1 = Dense(neurons, activation='softmax')(model1)
     out1 = Dense(1,activation='sigmoid')(out1)
     final_model = Model(inputs=input1, outputs=out1)
     #model = Model(inputs=input1, outputs=out)
@@ -405,6 +391,8 @@ def fake_virtual():
     #final_model.compile(optimizer="adam",loss="sparse_categorical_crossentropy",metrics=["accuracy", f1_m])
     '''
     return final_model
+seed = 20
+tf.random.set_seed(seed)
 ##########################STATISTIQUES DESCRIPTIVES###################################
 '''
 def longueurDoc(docs):
@@ -415,12 +403,28 @@ def longueurDoc(docs):
 print(stats.mode(longueurDoc(docsClean)))
 print(stats.describe(longueurDoc(docsClean)))
 '''
+docsClean = []
+i=0
+print("DEBUT Traitement de text ...")
+while i<len(textListe):
+    docs = nlp(textListe[i])
+    docsClean.append(clean(docs))
+    print(i)
+    i=i+1
+print("FIN Traitement de text")
+#trainX = preProcessCorpus(x_train)
+#valX = preProcessCorpus(x_test)
+#myTrain_Glove,myVal_Glove,word_index, embedding_matrix = prepare_model_input(x_train, x_test)
+myTrain_Glove, word_index, embedding_matrix = prepare_model_input(docsClean)
+#K.clear_session()
 model = fake_virtual()
 model.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer='adam', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='rappel')])
-model = KerasClassifier(model=model, verbose=0)
-batch_size = [5, 10,30,50,70]
-epochs = [5, 10,50,70,100]
-param_grid = dict(batch_size=batch_size, epochs=epochs)
+model = KerasClassifier(model=model,epochs=10, batch_size=5, verbose=0)
+#batch_size = [5, 10,30,50,70]
+#epochs = [5, 10,50,70,100]
+cells=[8,16,32,64]
+neurons = [16,32,64,128,256]
+param_grid = dict(model__cells=cells,model__neurons=neurons)
 #grid = GridSearchCV(estimator=model, param_grid=param_grid,cv=5)
 grid = GridSearchCV(
     estimator=model,
