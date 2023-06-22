@@ -420,7 +420,7 @@ myTrain_Glove, word_index, embedding_matrix = prepare_model_input(docsClean)
 #K.clear_session()
 #model = fake_virtual()
 #model.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer='adam', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='rappel')])
-model = KerasClassifier(model=fake_virtual(),epochs=10, batch_size=5, verbose=0)
+model = KerasClassifier(model=fake_virtual,epochs=10, batch_size=5, verbose=0)
 #batch_size = [5, 10,30,50,70]
 #epochs = [5, 10,50,70,100]
 cells=[8,16,32,64]
