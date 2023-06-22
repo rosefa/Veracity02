@@ -362,20 +362,21 @@ class CenterSumConstraint(Constraint):
         weights = weights / (weights_sum + 1e-8)  # Normalisation des poids
         weights=tf.tensor_scatter_nd_update(weights, [[dim1 // 2, dim2 // 2, dim1 // 3, dim2 // 4]], [-1])
         return weights
-def fake_virtual(cells,neurons):
+def fake_virtual(filters,kernel_size):
+    '''
     input1 = Input(shape=(100,))
     embedding_layer = Embedding(len(word_index)+1,100,embeddings_initializer=keras.initializers.Constant(embedding_matrix),input_length=100,trainable=False)(input1)
-    model1 = Bidirectional(LSTM(cells))(embedding_layer)
-    out1 = Dense(neurons, activation='softmax')(model1)
+    model1 = Bidirectional(LSTM(16))(embedding_layer)
+    out1 = Dense(1024, activation='softmax')(model1)
     out1 = Dense(1,activation='sigmoid')(out1)
     final_model = Model(inputs=input1, outputs=out1)
     final_model.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer='adam', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='rappel')])
-    #model = Model(inputs=input1, outputs=out)
     '''
+    #model = Model(inputs=input1, outputs=out)
     #final_model_out = model.compile(optimizer="adam",loss="sparse_categorical_crossentropy",metrics=["accuracy","precision", f1_m])
     #return model
     input2 = Input(shape=(224,224,3))
-    conv_layer = Conv2D(filters=3, kernel_size=5,kernel_constraint=CenterSumConstraint(), padding='same', use_bias=False)(input2)
+    conv_layer = Conv2D(filters=filters, kernel_size=kernel_size,kernel_constraint=CenterSumConstraint(), padding='same', use_bias=False)(input2)
     model = Conv2D(filters=16,kernel_size=3, padding='same',use_bias=False)(conv_layer)
     model = BatchNormalization(axis=3, scale=False)(model)
     model = Activation('relu')(model)
@@ -384,13 +385,16 @@ def fake_virtual(cells,neurons):
     model = Activation('relu')(model)
     model = GlobalAveragePooling2D()(model)
     # Fully connected layers
-    out2 = Dense(64, activation='softmax')(model)
+    model = Dense(1024, activation='softmax')(model)
     #concat = layers.Concatenate()([model1,model])
-    outFinal = tf.keras.layers.Add()([out1, out2])
-    final_model_output = Dense(1, activation='sigmoid')(outFinal)
-    final_model = Model(inputs=[input1,input2], outputs=final_model_output)
+    #outFinal = tf.keras.layers.Add()([out1, out2])
+    #final_model_output = Dense(1, activation='sigmoid')(outFinal)
+    output = Dense(1, activation='sigmoid')(model)
+    final_model = Model(inputs=input2, outputs=output)
+    final_model.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer='adam', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='rappel')])
+    #final_model = Model(inputs=[input1,input2], outputs=final_model_output)
     #final_model.compile(optimizer="adam",loss="sparse_categorical_crossentropy",metrics=["accuracy", f1_m])
-    '''
+    
     return final_model
 seed = 20
 tf.random.set_seed(seed)
@@ -403,7 +407,7 @@ def longueurDoc(docs):
     return longTab
 print(stats.mode(longueurDoc(docsClean)))
 print(stats.describe(longueurDoc(docsClean)))
-'''
+
 docsClean = []
 i=0
 print("DEBUT Traitement de text ...")
@@ -417,16 +421,20 @@ print("FIN Traitement de text")
 #valX = preProcessCorpus(x_test)
 #myTrain_Glove,myVal_Glove,word_index, embedding_matrix = prepare_model_input(x_train, x_test)
 myTrain_Glove, word_index, embedding_matrix = prepare_model_input(docsClean)
+'''
 #K.clear_session()
 #model = fake_virtual()
 #model.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer='adam', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='rappel')])
 model = KerasClassifier(model=fake_virtual,epochs=10, batch_size=5, verbose=0)
 #batch_size = [5, 10,30,50,70]
 #epochs = [5, 10,50,70,100]
-cells=[8,16,32,64]
-neurons = [16,32,64,128,256]
-param_grid = dict(model__cells=cells,model__neurons=neurons)
+#cells=[8,16,32,64]
+#neurons = [16,32,64,128,256]
+filters=[3,5,10,20]
+kernel_size = [3,5,7]
+param_grid = dict(model__filters=filters,model__kernel_size=kernel_size)
 #grid = GridSearchCV(estimator=model, param_grid=param_grid,cv=5)
+
 grid = GridSearchCV(
     estimator=model,
     param_grid=param_grid,
@@ -436,7 +444,8 @@ grid = GridSearchCV(
     return_train_score=True
 )
 print("DEBUT GRIDSEARCH ...")
-grid_result = grid.fit(myTrain_Glove, y)
+#grid_result = grid.fit(myTrain_Glove, y)
+grid_result = grid.fit(imageListe, y)
 print("####  summarize results1 ####")
 print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
 means = grid_result.cv_results_['mean_test_score']
@@ -517,8 +526,8 @@ for train_indices, val_indices in kfold.split(myTrain_Glove):
 
 print(VALIDATION_ACCURACY)
 print(VALIDATION_LOSS)
-'''
-'''
+
+
 print(len(labelText))
 print(len(textListe))
 modellstmP = fake_virtual()
