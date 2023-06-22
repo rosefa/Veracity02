@@ -369,6 +369,7 @@ def fake_virtual(cells,neurons):
     out1 = Dense(neurons, activation='softmax')(model1)
     out1 = Dense(1,activation='sigmoid')(out1)
     final_model = Model(inputs=input1, outputs=out1)
+    final_model.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer='adam', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='rappel')])
     #model = Model(inputs=input1, outputs=out)
     '''
     #final_model_out = model.compile(optimizer="adam",loss="sparse_categorical_crossentropy",metrics=["accuracy","precision", f1_m])
@@ -417,9 +418,9 @@ print("FIN Traitement de text")
 #myTrain_Glove,myVal_Glove,word_index, embedding_matrix = prepare_model_input(x_train, x_test)
 myTrain_Glove, word_index, embedding_matrix = prepare_model_input(docsClean)
 #K.clear_session()
-model = fake_virtual()
-model.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer='adam', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='rappel')])
-model = KerasClassifier(model=model,epochs=10, batch_size=5, verbose=0)
+#model = fake_virtual()
+#model.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer='adam', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='rappel')])
+model = KerasClassifier(model=fake_virtual(),epochs=10, batch_size=5, verbose=0)
 #batch_size = [5, 10,30,50,70]
 #epochs = [5, 10,50,70,100]
 cells=[8,16,32,64]
