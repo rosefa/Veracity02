@@ -362,16 +362,16 @@ class CenterSumConstraint(Constraint):
         weights = weights / (weights_sum + 1e-8)  # Normalisation des poids
         weights=tf.tensor_scatter_nd_update(weights, [[dim1 // 2, dim2 // 2, dim1 // 3, dim2 // 4]], [-1])
         return weights
-def fake_virtual(neurons):
-    '''
+def fake_virtual():
+    
     input1 = Input(shape=(100,))
     embedding_layer = Embedding(len(word_index)+1,100,embeddings_initializer=keras.initializers.Constant(embedding_matrix),input_length=100,trainable=False)(input1)
     model1 = Bidirectional(LSTM(16))(embedding_layer)
-    out1 = Dense(1024, activation='softmax')(model1)
+    out1 = Dense(256, activation='softmax')(model1)
     out1 = Dense(1,activation='sigmoid')(out1)
-    final_model = Model(inputs=input1, outputs=out1)
-    final_model.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer='adam', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='rappel')])
-    '''
+    #final_model = Model(inputs=input1, outputs=out1)
+    #final_model.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer='adam', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='rappel')])
+    
     #model = Model(inputs=input1, outputs=out)
     #final_model_out = model.compile(optimizer="adam",loss="sparse_categorical_crossentropy",metrics=["accuracy","precision", f1_m])
     #return model
@@ -385,14 +385,17 @@ def fake_virtual(neurons):
     model = Activation('relu')(model)
     model = GlobalAveragePooling2D()(model)
     # Fully connected layers
-    model = Dense(neurons, activation='softmax')(model)
+    model = Dense(32, activation='softmax')(model)
+    out2 = Dense(1,activation='sigmoid')(model)
     #concat = layers.Concatenate()([model1,model])
-    #outFinal = tf.keras.layers.Add()([out1, out2])
-    #final_model_output = Dense(1, activation='sigmoid')(outFinal)
-    output = Dense(1, activation='sigmoid')(model)
-    final_model = Model(inputs=input2, outputs=output)
+    outFinal = tf.keras.layers.Add()([out1, out2])
+    final_model_output = Dense(1, activation='sigmoid')(outFinal)
+    #output = Dense(1, activation='sigmoid')(model)
+    #final_model = Model(inputs=input2, outputs=output)
+    #final_model.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer='adam', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='rappel')])
+    final_model = Model(inputs=[input1,input2], outputs=final_model_output)
     final_model.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer='adam', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='rappel')])
-    #final_model = Model(inputs=[input1,input2], outputs=final_model_output)
+    
     #final_model.compile(optimizer="adam",loss="sparse_categorical_crossentropy",metrics=["accuracy", f1_m])
     
     return final_model
@@ -421,7 +424,7 @@ print("FIN Traitement de text")
 #valX = preProcessCorpus(x_test)
 #myTrain_Glove,myVal_Glove,word_index, embedding_matrix = prepare_model_input(x_train, x_test)
 myTrain_Glove, word_index, embedding_matrix = prepare_model_input(docsClean)
-'''
+
 #K.clear_session()
 #model = fake_virtual()
 #model.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer='adam', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='rappel')])
@@ -462,6 +465,7 @@ params = grid_result.cv_results_['params']
 for mean, stdev, param in zip(means, stds, params):
     print("%f (%f) with: %r" % (mean, stdev, param))
 '''
+
 #kf = KFold(n_splits = 5)
 #skf = StratifiedKFold(n_splits = 5, shuffle = True) 
 kfold = KFold(n_splits=5, shuffle=True)
@@ -535,7 +539,7 @@ for train_indices, val_indices in kfold.split(myTrain_Glove):
 print(VALIDATION_ACCURACY)
 print(VALIDATION_LOSS)
 
-
+'''
 print(len(labelText))
 print(len(textListe))
 modellstmP = fake_virtual()
