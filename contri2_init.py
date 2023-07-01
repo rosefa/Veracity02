@@ -430,8 +430,8 @@ model = KerasClassifier(model=fake_virtual,epochs=10, batch_size=5, verbose=0)
 #epochs = [5, 10,50,70,100]
 #cells=[8,16,32,64]
 #neurons = [16,32,64,128,256]
-filters=[7,8]
-kernel_size = [3,5,7]
+filters=[9]
+kernel_size = [7,9]
 param_grid = dict(model__filters=filters,model__kernel_size=kernel_size)
 #grid = GridSearchCV(estimator=model, param_grid=param_grid,cv=5)
 
