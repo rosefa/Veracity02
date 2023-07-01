@@ -444,12 +444,16 @@ grid = GridSearchCV(
     return_train_score=True
 )
 print("DEBUT GRIDSEARCH ...")
-encoder = LabelEncoder()
-encoder.fit(dataImageDF["label"])
-yDF = encoder.transform(dataImageDF["label"])
+j=0
+imageData=[]
+imageLabel=[]
+while j < len(dataImageDF):
+    imageData.append(dataImageDF.loc[j,'image'])
+    imageLabel.append(dataImageDF.loc[j,'label'])
+    j=j+1
 #grid_result = grid.fit(myTrain_Glove, y)
 #grid_result = grid.fit(imageListe, y)
-grid_result = grid.fit(dataImageDF["image"],yDF)
+grid_result = grid.fit(imageData,imageLabel)
 print("####  summarize results1 ####")
 print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
 means = grid_result.cv_results_['mean_test_score']
