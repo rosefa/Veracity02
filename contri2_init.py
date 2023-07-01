@@ -90,7 +90,7 @@ x  = 'MediaEvalData/DevSetImages'
 dir_path = 'MediaEvalData/DevSetImages/**/**'
 #res est l'ensemble des dossiers contenant les images
 res = glob.glob(dir_path)
-dataImage = pd.DataFrame(columns=['nomImage','image','label'])
+dataImageDF = pd.DataFrame(columns=['nomImage','image','label'])
 textListe = []
 imageListe = []
 labelImage = []
@@ -109,7 +109,7 @@ while i < len(res):
             chemin = chem[j].split("/")
             imageNom = chemin[len(chemin)-1]
             nb = len(imageNom)-4
-            dataImage.loc[len(dataImage)] = [imageNom[:nb],np.array(imgResize),0]
+            dataImageDF.loc[len(dataImageDF)] = [imageNom[:nb],np.array(imgResize),0]
             j=j+1
     if(res[i][-5:]=='reals'):
         chem = glob.glob(res[i]+'/**')
@@ -122,7 +122,7 @@ while i < len(res):
             chemin = chem[j].split("/")
             imageNom = chemin[len(chemin)-1]
             nb = len(imageNom)-4
-            dataImage.loc[len(dataImage)] = [imageNom[:nb],np.array(imgResize),1]
+            dataImageDF.loc[len(dataImageDF)] = [imageNom[:nb],np.array(imgResize),1]
             j=j+1
     if(res[i][-4:]=='.jpg'or res[i][-4:]=='.png' ) :
         #img=mpimg.imread(res[i])
@@ -131,11 +131,11 @@ while i < len(res):
         chemin = res[i].split("/")
         imageNom = chemin[len(chemin)-1]
         nb = len(imageNom)-4
-        dataImage.loc[len(dataImage)] = [imageNom[:nb],np.array(imgResize),0]
+        dataImageDF.loc[len(dataImageDF)] = [imageNom[:nb],np.array(imgResize),0]
     i=i+1
 print("######################## DATA IMAGE SHAPE ###################")
-#print(dataImage.shape)
-#print(dataImage.head())
+print(dataImageDF.shape)
+print(dataImageDF.head())
 
 dataImageText = pd.DataFrame(columns=['text','nomImage','image','label'])
 k=0
@@ -144,10 +144,10 @@ while i <len(dataText):
     equal = 'non'
     if(dataText.loc[i,'label']=='fake'or dataText.loc[i,'label']=='real'):
         j=0
-        while j < len(dataImage):
-            if(dataText.loc[i,'imageId(s)']==dataImage.loc[j,"nomImage"]):
-                imageListe.append(dataImage.loc[j,"image"])
-                labelImage.append(dataImage.loc[j,"label"])
+        while j < len(dataImageDF):
+            if(dataText.loc[i,'imageId(s)']==dataImageDF.loc[j,"nomImage"]):
+                imageListe.append(dataImageDF.loc[j,"image"])
+                labelImage.append(dataImageDF.loc[j,"label"])
                 tweetClean = net.clean(dataText.loc[i,'tweetText'])
                 textListe.append(str(tweetClean))
                 labelText.append(dataText.loc[i,'label'])
@@ -444,8 +444,12 @@ grid = GridSearchCV(
     return_train_score=True
 )
 print("DEBUT GRIDSEARCH ...")
+encoder = LabelEncoder()
+encoder.fit(dataImageDF["label"])
+yDF = encoder.transform(dataImageDF["label"])
 #grid_result = grid.fit(myTrain_Glove, y)
-grid_result = grid.fit(imageListe, y)
+#grid_result = grid.fit(imageListe, y)
+grid_result = grid.fit(dataImageDF["image"],yDF)
 print("####  summarize results1 ####")
 print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
 means = grid_result.cv_results_['mean_test_score']
