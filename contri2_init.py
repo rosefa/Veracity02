@@ -362,7 +362,7 @@ class CenterSumConstraint(Constraint):
         weights = weights / (weights_sum + 1e-8)  # Normalisation des poids
         weights=tf.tensor_scatter_nd_update(weights, [[dim1 // 2, dim2 // 2, dim1 // 3, dim2 // 4]], [-1])
         return weights
-def fake_virtual(filters,kernel_size):
+def fake_virtual(neurons):
     '''
     input1 = Input(shape=(100,))
     embedding_layer = Embedding(len(word_index)+1,100,embeddings_initializer=keras.initializers.Constant(embedding_matrix),input_length=100,trainable=False)(input1)
@@ -380,12 +380,12 @@ def fake_virtual(filters,kernel_size):
     model = Conv2D(filters=32,kernel_size=3, padding='same',use_bias=False)(conv_layer)
     model = BatchNormalization(axis=3, scale=False)(model)
     model = Activation('relu')(model)
-    model = Conv2D(filters=filters,kernel_size=kernel_size, padding='same',use_bias=False)(model)
+    model = Conv2D(filters=32,kernel_size=3, padding='same',use_bias=False)(model)
     model = BatchNormalization(axis=3, scale=False)(model)
     model = Activation('relu')(model)
     model = GlobalAveragePooling2D()(model)
     # Fully connected layers
-    model = Dense(1024, activation='softmax')(model)
+    model = Dense(neurons, activation='softmax')(model)
     #concat = layers.Concatenate()([model1,model])
     #outFinal = tf.keras.layers.Add()([out1, out2])
     #final_model_output = Dense(1, activation='sigmoid')(outFinal)
@@ -429,10 +429,10 @@ model = KerasClassifier(model=fake_virtual,epochs=10, batch_size=5, verbose=0)
 #batch_size = [5, 10,30,50,70]
 #epochs = [5, 10,50,70,100]
 #cells=[8,16,32,64]
-#neurons = [16,32,64,128,256]
-filters=[5,7,32]
-kernel_size = [3,5]
-param_grid = dict(model__filters=filters,model__kernel_size=kernel_size)
+neurons = [16,32,64,128,256,1024]
+#filters=[5,7,32]
+#kernel_size = [3,5]
+param_grid = dict(model__neurons=neurons)
 #grid = GridSearchCV(estimator=model, param_grid=param_grid,cv=5)
 
 grid = GridSearchCV(
