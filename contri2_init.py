@@ -431,7 +431,7 @@ model = KerasClassifier(model=fake_virtual,epochs=10, batch_size=5, verbose=0)
 #cells=[8,16,32,64]
 #neurons = [16,32,64,128,256]
 filters=[5]
-kernel_size = [3,5]
+kernel_size = [5,7]
 param_grid = dict(model__filters=filters,model__kernel_size=kernel_size)
 #grid = GridSearchCV(estimator=model, param_grid=param_grid,cv=5)
 
