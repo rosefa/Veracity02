@@ -376,7 +376,7 @@ def fake_virtual(filters,kernel_size):
     #final_model_out = model.compile(optimizer="adam",loss="sparse_categorical_crossentropy",metrics=["accuracy","precision", f1_m])
     #return model
     input2 = Input(shape=(224,224,3))
-    conv_layer = Conv2D(filters=filters, kernel_size=kernel_size,kernel_constraint=CenterSumConstraint(), padding='same', use_bias=False)(input2)
+    conv_layer = Conv2D(filters=7, kernel_size=7,kernel_constraint=CenterSumConstraint(), padding='same', use_bias=False)(input2)
     model = Conv2D(filters=filters,kernel_size=kernel_size, padding='same',use_bias=False)(conv_layer)
     model = BatchNormalization(axis=3, scale=False)(model)
     model = Activation('relu')(model)
