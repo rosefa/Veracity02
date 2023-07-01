@@ -377,7 +377,7 @@ def fake_virtual(filters,kernel_size):
     #return model
     input2 = Input(shape=(224,224,3))
     conv_layer = Conv2D(filters=filters, kernel_size=kernel_size,kernel_constraint=CenterSumConstraint(), padding='same', use_bias=False)(input2)
-    model = Conv2D(filters=16,kernel_size=3, padding='same',use_bias=False)(conv_layer)
+    model = Conv2D(filters=filters,kernel_size=kernel_size, padding='same',use_bias=False)(conv_layer)
     model = BatchNormalization(axis=3, scale=False)(model)
     model = Activation('relu')(model)
     model = Conv2D(filters=32,kernel_size=3, padding='same',use_bias=False)(model)
@@ -430,8 +430,8 @@ model = KerasClassifier(model=fake_virtual,epochs=10, batch_size=5, verbose=0)
 #epochs = [5, 10,50,70,100]
 #cells=[8,16,32,64]
 #neurons = [16,32,64,128,256]
-filters=[9]
-kernel_size = [7,9]
+filters=[7,16,32]
+kernel_size = [3,5]
 param_grid = dict(model__filters=filters,model__kernel_size=kernel_size)
 #grid = GridSearchCV(estimator=model, param_grid=param_grid,cv=5)
 
