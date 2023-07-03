@@ -157,7 +157,7 @@ while i <len(dataText):
     i=i+1
     
 imageListe = np.array(imageListe)
-textListe = np.array(textListe)
+#textListe = np.array(textListe)
 # Encode y text data in numeric
 encoder = LabelEncoder()
 encoder.fit(labelText)
