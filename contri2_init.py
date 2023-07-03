@@ -157,7 +157,7 @@ while i <len(dataText):
     i=i+1
     
 imageListe = np.array(imageListe)
-#textListe = np.array(textListe)
+textListe = np.array(textListe)
 # Encode y text data in numeric
 encoder = LabelEncoder()
 encoder.fit(labelText)
@@ -425,7 +425,7 @@ print("FIN Traitement de text")
 #trainX = preProcessCorpus(x_train)
 #valX = preProcessCorpus(x_test)
 #myTrain_Glove,myVal_Glove,word_index, embedding_matrix = prepare_model_input(x_train, x_test)
-myTrain_Glove, word_index, embedding_matrix = prepare_model_input(docsClean)
+
 
 #K.clear_session()
 #model = fake_virtual()
@@ -467,7 +467,19 @@ params = grid_result.cv_results_['params']
 for mean, stdev, param in zip(means, stds, params):
     print("%f (%f) with: %r" % (mean, stdev, param))
 '''
-
+docsClean = []
+i=0
+print("DEBUT Traitement de text ...")
+while i<len(textListe):
+    docs = nlp(textListe[i])
+    docsClean.append(clean(docs))
+    print(i)
+    i=i+1
+print("FIN Traitement de text")
+#trainX = preProcessCorpus(x_train)
+#valX = preProcessCorpus(x_test)
+#myTrain_Glove,myVal_Glove,word_index, embedding_matrix = prepare_model_input(x_train, x_test)
+myTrain_Glove, word_index, embedding_matrix = prepare_model_input(docsClean)
 #kf = KFold(n_splits = 5)
 #skf = StratifiedKFold(n_splits = 5, shuffle = True) 
 kfold = KFold(n_splits=5, shuffle=True)
