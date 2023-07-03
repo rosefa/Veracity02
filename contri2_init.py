@@ -15,6 +15,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
 from sklearn.metrics import classification_report, confusion_matrix
 from tensorflow.keras.constraints import Constraint
+import itertools
 
 import tensorflow as tf
 from tensorflow import keras
@@ -367,7 +368,7 @@ def fake_virtual():
     input1 = Input(shape=(100,))
     embedding_layer = Embedding(len(word_index)+1,100,embeddings_initializer=keras.initializers.Constant(embedding_matrix),input_length=100,trainable=False)(input1)
     model1 = Bidirectional(LSTM(16))(embedding_layer)
-    out1 = Dense(256, activation='softmax')(model1)
+    out1 = Dense(256, activation='relu')(model1)
     out1 = Dense(1,activation='sigmoid')(out1)
     #final_model = Model(inputs=input1, outputs=out1)
     #final_model.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer='adam', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='rappel')])
@@ -385,16 +386,17 @@ def fake_virtual():
     model = Activation('relu')(model)
     model = GlobalAveragePooling2D()(model)
     # Fully connected layers
-    model = Dense(32, activation='softmax')(model)
+    model = Dense(32, activation='relu')(model)
     out2 = Dense(1,activation='sigmoid')(model)
     #concat = layers.Concatenate()([model1,model])
-    outFinal = tf.keras.layers.Add()([out1, out2])
-    final_model_output = Dense(1, activation='sigmoid')(outFinal)
+    #outFinal = tf.keras.layers.Add()([out1, out2])
+    outFinal = tf.keras.layers.Average()([out1, out2])
+    #final_model_output = Dense(1, activation='sigmoid')(outFinal)
     #output = Dense(1, activation='sigmoid')(model)
     #final_model = Model(inputs=input2, outputs=output)
     #final_model.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer='adam', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='rappel')])
-    final_model = Model(inputs=[input1,input2], outputs=final_model_output)
-    final_model.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer='adam', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='rappel')])
+    final_model = Model(inputs=[input1,input2], outputs=outFinal)
+    #final_model.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer='adam', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='rappel')])
     
     #final_model.compile(optimizer="adam",loss="sparse_categorical_crossentropy",metrics=["accuracy", f1_m])
     
@@ -533,6 +535,23 @@ for train_indices, val_indices in kfold.split(myTrain_Glove):
     plt.title('Courbe ROC')
     plt.legend()
     plt.savefig('courbes_ROC_'+str(fold_var)+'.png')
+
+    cnf_matrix = confusion_matrix(val_labels, y_pred)
+    classes = range(0,2)
+    plt.figure()
+    plt.imshow(cnf_matrix, interpolation='nearest',cmap='Oranges')
+    plt.colorbar()
+    tick_marks = np.arange(len(classes))
+    plt.xticks(tick_marks, classes)
+    plt.yticks(tick_marks, classes)
+    for i, j in itertools.product(range(cnf_matrix.shape[0]), range(cnf_matrix.shape[1])):
+        plt.text(j, i, cnf_matrix[i, j],horizontalalignment="center",color="white" if cnf_matrix[i, j] > ( cnf_matrix.max() / 2) else "black")
+        plt.ylabel('Vrais labels')
+        plt.xlabel('Labels prédits')
+        plt.title('Matrice de confusion')
+        plt.legend()
+        plt.savefig('confusionMat'+str(fold_var)+'.png')
+
     fold_var += 1
     
 
