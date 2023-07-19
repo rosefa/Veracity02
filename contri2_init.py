@@ -547,7 +547,8 @@ for train_indices, val_indices in kfold.split(myTrain_Glove):
     plt.title('Courbe ROC')
     plt.legend()
     plt.savefig('courbes_ROC_'+str(fold_var)+'.png')
-
+    y_pred = y_pred.flatten()
+    y_pred = np.where(y_pred > 0.5, 1, 0)
     cnf_matrix = confusion_matrix(val_labels, y_pred)
     classes = range(0,2)
     plt.figure()
