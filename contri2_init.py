@@ -1,9 +1,9 @@
 import Nettoyage as net
-#import nltk
+import nltk
 import pandas as pd
 import numpy as np 
 import cv2 as cv
-#from fastai.imports import *
+from fastai.imports import *
 import os, glob
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
@@ -15,9 +15,10 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
 from sklearn.metrics import classification_report, confusion_matrix
 from tensorflow.keras.constraints import Constraint
-import itertools
 
 import tensorflow as tf
+tf.gfile = tf.io.gfile
+import tensorflow_hub as hub
 from tensorflow import keras
 import keras.utils as image
 from keras.preprocessing.image import ImageDataGenerator
@@ -40,15 +41,16 @@ from tensorflow.keras.layers import Dense
 from tensorflow.keras import layers
 from keras.layers import Bidirectional,LSTM, Add,GRU,MaxPooling1D, GlobalMaxPool1D, GlobalMaxPooling1D, Dropout,Conv1D,Embedding,Flatten, Input, Layer,GlobalAveragePooling1D,Activation,Lambda,LayerNormalization, Concatenate, Average,AlphaDropout,Reshape, multiply
 
-#import contractions
-#from bs4 import BeautifulSoup
+import contractions
+from bs4 import BeautifulSoup
+from keras.utils import to_categorical
 from sklearn import preprocessing
-from keras.preprocessing.text import Tokenizer
-#from nltk import word_tokenize, sent_tokenize, pos_tag
-#from nltk.corpus import stopwords
-#from nltk.stem import LancasterStemmer, WordNetLemmatizer,PorterStemmer
+#from keras.preprocessing.text import Tokenizer
+from nltk import word_tokenize, sent_tokenize, pos_tag
+from nltk.corpus import stopwords
+from nltk.stem import LancasterStemmer, WordNetLemmatizer,PorterStemmer
 from tensorflow.keras.layers import TextVectorization
-#import tqdm
+import tqdm
 from sklearn.model_selection import GridSearchCV
 from scikeras.wrappers import KerasClassifier
 from sklearn.metrics import roc_curve, auc
@@ -56,288 +58,88 @@ import spacy
 from scipy import stats
 from spacy import displacy
 nlp = spacy.load("en_core_web_sm")
+#import bert_tokenizer as tok
 import absl.logging
-absl.logging.set_verbosity(absl.logging.ERROR)
-print('DEBUT..............')
+import tensorflow_hub as hub
+from bert import tokenization
+#absl.logging.set_verbosity(absl.logging.ERROR)
 
+################# DEBUT..................DEFINITION DES FONCTIONS ###################
+best_models = []
+m_url = 'https://tfhub.dev/tensorflow/bert_en_uncased_L-12_H-768_A-12/2'
+bert_layer = hub.KerasLayer(m_url, trainable=True)
 
-#print(dataTest.head(5))
-#dataText = pd.read_csv('MediaEvalData/Eval2015_TestSet.csv',delimiter=";", encoding= 'unicode_escape')
-#dataText = pd.read_csv('MediaEvalData/Eval2015_DevSet1.csv',delimiter=";", encoding= 'unicode_escape')
-dataText = pd.read_csv('MediaEvalData/DevSetOtre.txt', sep="\t",header=0, engine='python',encoding= 'raw_unicode_escape')
+vocab_file = bert_layer.resolved_object.vocab_file.asset_path.numpy()
+do_lower_case = bert_layer.resolved_object.do_lower_case.numpy()
+tokenizer = tokenization.FullTokenizer(vocab_file, do_lower_case)
 
-print("######################## DATA IMAGE SHAPE ###################")
-#print(dataText.shape)
-#print(dataText.head())
+def bert_encode(texts, tokenizer, max_len=512):
+    all_tokens = []
+    all_masks = []
+    all_segments = []
+    for text in texts:
+        text = tokenizer.tokenize(text)
+        text = text[:max_len-2]
+        input_sequence = ["[CLS]"] + text + ["[SEP]"]
+        pad_len = max_len-len(input_sequence)
+        tokens = tokenizer.convert_tokens_to_ids(input_sequence) + [0] * pad_len
+        pad_masks = [1] * len(input_sequence) + [0] * pad_len
+        segment_ids = [0] * max_len
 
-'''
-image_test1 = 'MediaEvalData/TestSetImages/Garissa_Attack/'
-image_test2 = 'MediaEvalData/TestSetImages/Nepal_earthquake'
-image_test3 = 'MediaEvalData/TestSetImages/Samurai_ghost'
-image_test4 = 'MediaEvalData/TestSetImages/Solar_eclipse'
-image_test4 = 'MediaEvalData/TestSetImages/Syrian_boy'
-image_test4 = 'MediaEvalData/TestSetImages/Varoufakis_zdf'
-for filename in glob.glob(image_test1+'*.jpg'):
-    img_color=cv2.imread(filename,-1)
-    plt.imshow(img_color)
-    plt.axis("off")
-    plt.show()
-'''
-height = 224
-width = 224
-dim = (width, height)
+        all_tokens.append(tokens)
+        all_masks.append(pad_masks)
+        all_segments.append(segment_ids)
+    return np.array(all_tokens), np.array(all_masks), np.array(all_segments)
+def fake_virtual(bert_layer, max_len=512):
+    input_word_ids = tf.keras.Input(shape=(max_len,), dtype=tf.int32, name="input_word_ids")
+    input_mask = tf.keras.Input(shape=(max_len,), dtype=tf.int32, name="input_mask")
+    segment_ids = tf.keras.Input(shape=(max_len,), dtype=tf.int32, name="segment_ids")
 
-x  = 'MediaEvalData/DevSetImages'
-dir_path = 'MediaEvalData/DevSetImages/**/**'
-#res est l'ensemble des dossiers contenant les images
-res = glob.glob(dir_path)
-dataImageDF = pd.DataFrame(columns=['nomImage','image','label'])
-textListe = []
-imageListe = []
-labelImage = []
-labelText = []
-#Former un dataframe les images et le label
-i=0
-while i < len(res):
-    if(res[i][-5:]=='fakes'):
-        chem = glob.glob(res[i]+'/**')
-        j=0
-        while j <len(chem):
-            img = Image.open(chem[j]).convert('RGB')
-            imgResize = img.resize((224,224),Image.ANTIALIAS)
-            #imgResize = imgResize/255
-            #imgResize = imgResize.astype(np.float32)
-            chemin = chem[j].split("/")
-            imageNom = chemin[len(chemin)-1]
-            nb = len(imageNom)-4
-            dataImageDF.loc[len(dataImageDF)] = [imageNom[:nb],np.array(imgResize),0]
-            j=j+1
-    if(res[i][-5:]=='reals'):
-        chem = glob.glob(res[i]+'/**')
-        j=0
-        while j < len(chem):
-            img = Image.open(chem[j]).convert('RGB')
-            imgResize = img.resize((224,224),Image.ANTIALIAS)
-            #imgResize = imgResize/255
-            #imgResize = imgResize.astype(np.float32)
-            chemin = chem[j].split("/")
-            imageNom = chemin[len(chemin)-1]
-            nb = len(imageNom)-4
-            dataImageDF.loc[len(dataImageDF)] = [imageNom[:nb],np.array(imgResize),1]
-            j=j+1
-    if(res[i][-4:]=='.jpg'or res[i][-4:]=='.png' ) :
-        #img=mpimg.imread(res[i])
-        img = Image.open(res[i]).convert('RGB')
-        imgResize = img.resize((224,224),Image.ANTIALIAS)
-        chemin = res[i].split("/")
-        imageNom = chemin[len(chemin)-1]
-        nb = len(imageNom)-4
-        dataImageDF.loc[len(dataImageDF)] = [imageNom[:nb],np.array(imgResize),0]
-    i=i+1
-print("######################## DATA IMAGE SHAPE ###################")
-print(dataImageDF.shape)
-print(dataImageDF.head())
+    pooled_output, sequence_output = bert_layer([input_word_ids, input_mask, segment_ids])
 
-dataImageText = pd.DataFrame(columns=['text','nomImage','image','label'])
-k=0
-i=0
-while i <len(dataText):
-    equal = 'non'
-    if(dataText.loc[i,'label']=='fake'or dataText.loc[i,'label']=='real'):
-        j=0
-        while j < len(dataImageDF):
-            if(dataText.loc[i,'imageId(s)']==dataImageDF.loc[j,"nomImage"]):
-                imageListe.append(dataImageDF.loc[j,"image"])
-                labelImage.append(dataImageDF.loc[j,"label"])
-                tweetClean = net.clean(dataText.loc[i,'tweetText'])
-                textListe.append(str(tweetClean))
-                labelText.append(dataText.loc[i,'label'])
-                equal = 'oui'
-            j=j+1
-    i=i+1
-    
-imageListe = np.array(imageListe)
-#textListe = np.array(textListe)
-# Encode y text data in numeric
-encoder = LabelEncoder()
-encoder.fit(labelText)
-y = encoder.transform(labelText)
+    clf_output = sequence_output[:, 0, :]
 
+    #input1 = Input(shape=(100,))
+    #embedding_layer = Embedding(len(word_index)+1,100,embeddings_initializer=keras.initializers.Constant(embedding_matrix),input_length=100,trainable=False)(input1)
+    #model1 = Bidirectional(LSTM(32))(embedding_layer)
+    model1 = Bidirectional(LSTM(32))(sequence_output)
+    model1 = Dense(64, activation='softmax')(model1)
 
+    input2 = Input(shape=(224,224,3))
+    model2 = Conv2D(filters=3, kernel_size=5,kernel_constraint=CustomConstraint(3,5), padding='same', use_bias=False)(input2)
+    model2 = Conv2D(filters=16,kernel_size=3, padding='same',use_bias=False)(model2)
+    model2 = BatchNormalization(axis=3, scale=False)(model2)
+    model2 = Activation('relu')(model2)
+    model2 = Conv2D(filters=32,kernel_size=3, padding='same',use_bias=False)(model2)
+    model2 = BatchNormalization(axis=3, scale=False)(model2)
+    model2 = Activation('relu')(model2)
+    model2 = GlobalAveragePooling2D()(model2)
+    model2 = Dense(64, activation='relu')(model2)
 
-#x_train, x_test,Im_train, Im_test, y_train, y_test = train_test_split(textListe,imageListe,y, test_size = 0.2, random_state = 42)
+    outFinal = tf.keras.layers.Add()([model1, model2])
+    final_model_output = Dense(2, activation='softmax')(outFinal)
+    #input1=[input_word_ids, input_mask, segment_ids]
+    final_model = Model(inputs=[input_word_ids, input_mask, segment_ids, input2], outputs=final_model_output)
+    #final_model.compile(optimizer="adam",loss="sparse_categorical_crossentropy",metrics=["accuracy", f1_m])
+    final_model.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer='adam', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='rappel')])
+    return final_model
 
-def recall_m(y_true, y_pred):
-    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
-    possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
-    recall = true_positives / (possible_positives + K.epsilon())
-    return recall
+#K.clear_session()
 
-def precision_m(y_true, y_pred):
-    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
-    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
-    precision = true_positives / (predicted_positives + K.epsilon())
-    return precision
-
-def f1_m(y_true, y_pred):
-    precision = precision_m(y_true, y_pred)
-    recall = recall_m(y_true, y_pred)
-    return 2*((precision*recall)/(precision+recall+K.epsilon()))
-
-#print("DOWNLOAD stopwords and ...")
-#nltk.download('stopwords')
-#nltk.download('punkt')
-#print("DOWNLOAD stopwords and OK")
-'''
-def preProcessCorpus(docs):
-  norm_docs = []
-  stop_words = set(stopwords.words('english'))
-  i=0
-  for doc in tqdm.tqdm(docs):
-    #doc = strip_html_tags(doc)
-    doc = re.sub(r'^http?:\/\/.*[\r\n]*', '', doc,flags=re.MULTILINE)
-    doc = re.sub('\&lt\;.*?\&gt\;', '', doc)
-    doc = doc.lower()
-    doc = doc.translate(doc.maketrans("\n\t", "  "))
-    #doc = remove_accented_chars(doc)
-    doc = contractions.fix(doc)
-    # lower case and remove special characters\whitespaces
-    doc = re.sub(r'[^a-zA-Z0-9\s]', '', doc, re.I|re.A)
-    doc = re.sub(' +', ' ', doc)
-    doc = re.sub(r'[0-9]+', '', doc)
-    word_tokens = word_tokenize(doc)
-    doc = [w for w in word_tokens if not w in stop_words]
-    doc = ' '.join([x for x in doc])
-    doc = doc.strip()  
-    norm_docs.append(doc)
-    i=i+1
-  return norm_docs
-'''
-
-def prepare_model_input(text1,MAX_SEQUENCE_LENGTH=100):
-    embeddings_index ={}
-    tokenizer = Tokenizer()
-    #text = text1+text2
-    text = text1
-    tokenizer.fit_on_texts(text)
-    tokenizer.word_index['<PAD>'] = 0
-    #sequencesVal = tokenizer.texts_to_sequences(text2)
-    sequencesText = tokenizer.texts_to_sequences(text1)
-    #val_Glove = tf.keras.preprocessing.sequence.pad_sequences(sequencesVal, maxlen=MAX_SEQUENCE_LENGTH, padding='post')
-    text_Glove = tf.keras.preprocessing.sequence.pad_sequences(sequencesText, maxlen=MAX_SEQUENCE_LENGTH, padding='post')
-    word_index = tokenizer.word_index
-    with open("glove.6B.100d.txt") as f:
-        for line in f:
-            word, coefs = line.split(maxsplit=1)
-            coefs = np.fromstring(coefs, "f", sep=" ")
-            embeddings_index[word] = coefs
-    nb_words = len(word_index)
-    embedding_matrix = np.zeros((nb_words+1,100))
-    count_found = nb_words
-    for word, i in word_index.items():
-        embedding_vector = embeddings_index.get(word)
-        if embedding_vector is not None: 
-            embedding_matrix[i] =  embedding_vector
-    return (text_Glove,word_index, embedding_matrix)
-def clean(doc):
-    doc = [token.lemma_.lower() for token in doc if (not token.is_punct) and (not token.is_space) and (not token.like_url) and (not token.is_stop) and len(token) > 1]
-    doc = ' '.join([x for x in doc])
-    return doc
-
-##########INITIALISATION DES FILTRES###########
-###création d'une matrice de valeurs aleatoires de type float###
-'''
-n=5
-np.random.rand2 = lambda *args, dtype=np.float32: np.random.rand(*args).astype(dtype)
-f1 = np.random.rand2(n,n)
-custom_weights = np.array((f1, f1, f1))
-f2 = custom_weights.transpose(1, 2, 0)
-custom_weights = np.array((f2,f2,f2,f2,f2,f2,f2,f2,f2,f2,f2,f2))
-custom_weights = custom_weights.transpose(1, 2, 3, 0)
-'''
-##########DEFINITION DE LA CONTRAINTE SUR LES FILTRES###########
-'''
-class CustomConstraint(Constraint):
-    def __init__(self, custom_weights):
-        self.custom_weights = tf.Variable(custom_weights)
-    def __call__(self, weights):
-        output = self.custom_weights
-        row_index = 2
-        col_index = 2
-        new_value = 0
-        output[row_index,col_index,:,:].assign(new_value)
-        som = tf.keras.backend.sum(output)
-        sum_without_center1 = 1/som
-        newMatrix = output*sum_without_center1
-        output.assign(newMatrix)
-        new_value = -1
-        output[row_index,col_index,:,:].assign(new_value)
-        return output
-'''
-##########DEFINITION DU MODELE AVEC 2 ENTREES ###########
-'''
-input1 = Input(shape=(50,))
-embedding_layer = Embedding(len(word_index)+1,100,embeddings_initializer=keras.initializers.Constant(embedding_matrix),trainable=False)(input1)
-model1 = Bidirectional(LSTM(32))(embedding_layer)
-model1 = Dense(64, activation='relu')(model1)
-
-
-input2 = Input(shape=(224,224,3))
-conv_layer = Conv2D(filters=12, kernel_size=5,kernel_constraint=CustomConstraint(custom_weights), padding='same', use_bias=False)(input2)
-model = Conv2D(filters=16,kernel_size=3, padding='same',use_bias=False)(conv_layer)
-model = BatchNormalization(axis=3, scale=False)(model)
-model = Activation('relu')(model)
-# Pooling layer
-model = MaxPooling2D(pool_size=(4, 4),
-                       strides=(4, 4),
-                       padding='same')(model)
-
-# Second convolution layer
-model = Conv2D(filters=32,
-                 kernel_size=3, 
-                 padding='same',
-                 use_bias=False)(model)
-model = BatchNormalization(axis=3, scale=False)(model)
-model = Activation('relu')(model)
-model = MaxPooling2D(pool_size=(4, 4), strides=(4, 4), padding='same')(model)
-model = Dropout(0.2)(model)
-# Third convolution layer
-model = Conv2D(filters=64,
-                 kernel_size=3, 
-                 padding='same',
-                 use_bias=False)(model)
-model = BatchNormalization(axis=3, scale=False)(model)
-model = Activation('relu')(model)
-model = GlobalAveragePooling2D()(model)
-# Fully connected layers
-model = Dense(128, activation='relu')(model)
-
-concat = layers.Concatenate()([model1,model])
-
-final_model_output = Dense(2, activation='softmax')(concat)
-final_model = Model(inputs=[input1,input2], outputs=final_model_output)
-                    
-# Compile the CNN Model
-final_model.compile(optimizer="adam",
-              loss="sparse_categorical_crossentropy",
-              metrics=["accuracy", f1_m])
-final_model.summary()
-'''
 class CustomConstraint(Constraint):
     n=5
-    
+
     def __init__(self,k,s):
         self.k = k
         self.s = s
         np.random.rand2 = lambda *args, dtype=np.float32: np.random.rand(*args).astype(dtype)
-        f1 = np.random.rand2(s,s) #une matrice de nombres réeles aléatoires de dimension 5
+        f1 = np.random.rand2(s,s)
         custom_weights = np.array((f1, f1, f1))
         f2 = custom_weights.transpose(1, 2, 0)
-        self.custom_weights = tf.Variable(f2)
-        #custom_weights = np.tile(f2, (k, 1, 1))
-        #T2 = np.reshape(custom_weights,(k,s,s,3))
-        #custom_weights = T2.transpose(1, 2, 3, 0)
-        #self.custom_weights = tf.Variable(custom_weights)
+        custom_weights = np.tile(f2, (k, 1, 1))
+        T2 = np.reshape(custom_weights,(k,s,s,3))
+        custom_weights = T2.transpose(1, 2, 3, 0)
+        self.custom_weights = tf.Variable(custom_weights)
     def __call__(self, weights):
         weights = self.custom_weights
         row_index = self.s//2
@@ -352,266 +154,224 @@ class CustomConstraint(Constraint):
         weights[row_index,col_index,:,:].assign(new_value)
         return weights
 
-class CenterSumConstraint(Constraint):
-    def __call__(self, weights):
-        #value = weights.value().numpy()
-        #print(weights.shape)
-        dim1, dim2, dim3, dim4  = weights.shape
-        #long = len(weights)
-        weights=tf.tensor_scatter_nd_update(weights, [[dim1 // 2, dim2 // 2, dim1 // 3, dim2 // 4]], [0])
-        weights_sum = tf.reduce_sum(weights)
-        weights = weights / (weights_sum + 1e-8)  # Normalisation des poids
-        weights=tf.tensor_scatter_nd_update(weights, [[dim1 // 2, dim2 // 2, dim1 // 3, dim2 // 4]], [-1])
-        return weights
-def fake_virtual():
-    
-    input1 = Input(shape=(100,))
-    embedding_layer = Embedding(len(word_index)+1,100,embeddings_initializer=keras.initializers.Constant(embedding_matrix),input_length=100,trainable=False)(input1)
-    model1 = Bidirectional(LSTM(16))(embedding_layer)
-    out1 = Dense(256, activation='relu')(model1)
-    out1 = Dense(1,activation='sigmoid')(out1)
-    #final_model = Model(inputs=input1, outputs=out1)
-    #final_model.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer='adam', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='rappel')])
-    
-    #model = Model(inputs=input1, outputs=out)
-    #final_model_out = model.compile(optimizer="adam",loss="sparse_categorical_crossentropy",metrics=["accuracy","precision", f1_m])
-    #return model
-    input2 = Input(shape=(224,224,3))
-    conv_layer = Conv2D(filters=7, kernel_size=7,kernel_constraint=CenterSumConstraint(), padding='same', use_bias=False)(input2)
-    model = Conv2D(filters=32,kernel_size=3, padding='same',use_bias=False)(conv_layer)
-    model = BatchNormalization(axis=3, scale=False)(model)
-    model = Activation('relu')(model)
-    model = Conv2D(filters=32,kernel_size=3, padding='same',use_bias=False)(model)
-    model = BatchNormalization(axis=3, scale=False)(model)
-    model = Activation('relu')(model)
-    model = GlobalAveragePooling2D()(model)
-    # Fully connected layers
-    model = Dense(32, activation='relu')(model)
-    out2 = Dense(1,activation='sigmoid')(model)
-    #concat = layers.Concatenate()([model1,model])
-    #outFinal = tf.keras.layers.Add()([out1, out2])
-    outFinal = tf.keras.layers.Average()([out1, out2])
-    #final_model_output = Dense(1, activation='sigmoid')(outFinal)
-    #output = Dense(1, activation='sigmoid')(model)
-    #final_model = Model(inputs=input2, outputs=output)
-    #final_model.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer='adam', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='rappel')])
-    final_model = Model(inputs=[input1,input2], outputs=outFinal)
-    #final_model.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer='adam', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='rappel')])
-    
-    #final_model.compile(optimizer="adam",loss="sparse_categorical_crossentropy",metrics=["accuracy", f1_m])
-    
-    return final_model
-seed = 20
-tf.random.set_seed(seed)
-##########################STATISTIQUES DESCRIPTIVES###################################
-'''
-def longueurDoc(docs):
-    longTab = []
-    for doc in docs:
-        longTab.append(len(doc))
-    return longTab
-print(stats.mode(longueurDoc(docsClean)))
-print(stats.describe(longueurDoc(docsClean)))
-
-docsClean = []
-i=0
-print("DEBUT Traitement de text ...")
-while i<len(textListe):
-    docs = nlp(textListe[i])
-    docsClean.append(clean(docs))
-    print(i)
-    i=i+1
-print("FIN Traitement de text")
-#trainX = preProcessCorpus(x_train)
-#valX = preProcessCorpus(x_test)
-#myTrain_Glove,myVal_Glove,word_index, embedding_matrix = prepare_model_input(x_train, x_test)
-
-
-#K.clear_session()
-#model = fake_virtual()
-#model.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer='adam', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='rappel')])
-model = KerasClassifier(model=fake_virtual,epochs=10, batch_size=5, verbose=0)
-#batch_size = [5, 10,30,50,70]
-#epochs = [5, 10,50,70,100]
-#cells=[8,16,32,64]
-neurons = [16,32,64,128,256,1024]
-#filters=[5,7,32]
-#kernel_size = [3,5]
-param_grid = dict(model__neurons=neurons)
-#grid = GridSearchCV(estimator=model, param_grid=param_grid,cv=5)
-
-grid = GridSearchCV(
-    estimator=model,
-    param_grid=param_grid,
-    n_jobs=4,
-    cv=5,
-    refit=True,
-    return_train_score=True
-)
-print("DEBUT GRIDSEARCH ...")
-j=0
-imageData=[]
-imageLabel=[]
-while j < len(dataImageDF):
-    imageData.append(dataImageDF.loc[j,'image'])
-    imageLabel.append(dataImageDF.loc[j,'label'])
-    j=j+1
-#grid_result = grid.fit(myTrain_Glove, y)
-#grid_result = grid.fit(imageListe, y)
-grid_result = grid.fit(imageData,imageLabel)
-print("####  summarize results1 ####")
-print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
-means = grid_result.cv_results_['mean_test_score']
-stds = grid_result.cv_results_['std_test_score']
-params = grid_result.cv_results_['params']
-for mean, stdev, param in zip(means, stds, params):
-    print("%f (%f) with: %r" % (mean, stdev, param))
-'''
-docsClean = []
-i=0
-print("DEBUT Traitement de text ...")
-while i<len(textListe):
-    docs = nlp(textListe[i])
-    docsClean.append(clean(docs))
-    print(i)
-    i=i+1
-print("FIN Traitement de text")
-#trainX = preProcessCorpus(x_train)
-#valX = preProcessCorpus(x_test)
-#myTrain_Glove,myVal_Glove,word_index, embedding_matrix = prepare_model_input(x_train, x_test)
-myTrain_Glove, word_index, embedding_matrix = prepare_model_input(docsClean)
-#kf = KFold(n_splits = 5)
-#skf = StratifiedKFold(n_splits = 5, shuffle = True) 
-kfold = KFold(n_splits=5, shuffle=True)
-print('DEBUT FORMATION DU MODEL........')
-VALIDATION_ACCURACY = []
-VALIDATION_LOSS = []
-save_dir = '/saved_models/'
-fold_var = 1
-
-for train_indices, val_indices in kfold.split(myTrain_Glove):
-    train_indices = np.array(train_indices)
-    val_indices = np.array(val_indices)
-    train_features1, train_features2 = myTrain_Glove[train_indices], imageListe[train_indices]
-    val_features1, val_features2 = myTrain_Glove[val_indices], imageListe[val_indices]
-    train_labels, val_labels = y[train_indices], y[val_indices]
-    print(fold_var)
-    model = fake_virtual()
-    model.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer='adam', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='rappel')])
-    checkpoint = tf.keras.callbacks.ModelCheckpoint('model_'+str(fold_var)+'.h5', monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
-    callbacks_list = [checkpoint]
-    history = model.fit([train_features1,train_features2],train_labels, epochs=10, batch_size=70,callbacks=callbacks_list, validation_data=([val_features1, val_features2],val_labels))
-    model.load_weights("model_"+str(fold_var)+".h5")
-    results = model.evaluate([val_features1, val_features2],val_labels,verbose=0)
-    results = dict(zip(model.metrics_names,results))
-    VALIDATION_ACCURACY.append(results['accuracy'])
-    VALIDATION_LOSS.append(results['loss'])
-    y_pred = model.predict([val_features1, val_features2]).ravel()
-    #y_pred = model.predict([val_features1, val_features2])
-    # Calculez les taux de faux positifs (FPR) et les taux de vrais positifs (TPR)
-    fpr, tpr, _ = roc_curve(val_labels, y_pred)
-    # Calculez l'aire sous la courbe ROC (AUC)
-    roc_auc = auc(fpr, tpr)
-    tf.keras.backend.clear_session()
-    accuracy = history.history['accuracy']
-    val_accuracy = history.history['val_accuracy']
-    epochs = range(1, len(accuracy) + 1)
-    plt.figure()
-    plt.plot(epochs, accuracy, 'b', label='Accuracy')
-    plt.plot(epochs, val_accuracy, 'r', label='Val Accuracy',linestyle='-')
-    plt.title('Accuracy et Val Accuracy')
-    plt.xlabel('Epochs')
-    plt.ylabel('Accuracy')
-    plt.legend()
-    plt.savefig('courbes_Accuracy_'+str(fold_var)+'.png')
-    
-    loss = history.history['loss']
-    val_loss = history.history['val_loss']
-    epochs = range(1, len(loss) + 1)
-    plt.figure()
-    plt.plot(epochs, loss, 'b', label='loss')
-    plt.plot(epochs, val_loss, 'r', label='Val loss',linestyle='--')
-    plt.title('Loss et Val Loss')
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.savefig('courbes_loss_'+str(fold_var)+'.png')
-    
-    plt.figure()
-    plt.plot(fpr, tpr, color='darkorange', lw=2, label='Courbe ROC (AUC = %0.2f)' % roc_auc)
-    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='-')
-    plt.xlim([0.0, 1.0])
-    plt.ylim([0.0, 1.05])
-    plt.xlabel('Taux de faux positifs')
-    plt.ylabel('Taux de vrais positifs')
-    plt.title('Courbe ROC')
+def plot_roc_curve(fper, tper,fold_var):
+    plt.plot(fper, tper, color='red', label='ROC')
+    plt.plot([0, 1], [0, 1], color='green', linestyle='--')
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Receiver Operating Characteristic Curve')
     plt.legend()
     plt.savefig('courbes_ROC_'+str(fold_var)+'.png')
-    y_pred = y_pred.flatten()
-    y_pred = np.where(y_pred > 0.5, 1, 0)
-    cnf_matrix = confusion_matrix(val_labels, y_pred)
-    classes = range(0,2)
-    plt.figure()
-    plt.imshow(cnf_matrix, interpolation='nearest',cmap='Oranges')
-    plt.colorbar()
-    tick_marks = np.arange(len(classes))
-    plt.xticks(tick_marks, classes)
-    plt.yticks(tick_marks, classes)
-    for i, j in itertools.product(range(cnf_matrix.shape[0]), range(cnf_matrix.shape[1])):
-        plt.text(j, i, cnf_matrix[i, j],horizontalalignment="center",color="white" if cnf_matrix[i, j] > ( cnf_matrix.max() / 2) else "black")
-        plt.ylabel('Vrais labels')
-        plt.xlabel('Labels prédits')
-        plt.title('Matrice de confusion')
-        plt.legend()
-        plt.savefig('confusionMat'+str(fold_var)+'.png')
 
+def plot_loss(epochs, loss,val_loss):
+  plt.plot(epochs, loss, 'b', label='loss')
+  plt.plot(epochs, val_loss, 'r', label='Val loss')
+  plt.title('Loss and Val_Loss')
+  plt.xlabel('Epochs')
+  plt.ylabel('Loss')
+  plt.legend()
+  plt.savefig('courbes_loss.png')
+
+def plot_accuracy(epochs, accuracy,val_accuracy):
+  plt.plot(epochs, accuracy, 'b', label='Accuracy')
+  plt.plot(epochs, val_accuracy, 'r', label='Val Accuracy')
+  plt.title('Accuracy and Val Accuracy')
+  plt.xlabel('Epochs')
+  plt.ylabel('Accuracy')
+  plt.legend()
+  plt.savefig('courbes_Accuracy.png')
+
+def predictModel(X):
+    testText = bert_encode(X['text'])
+    testImage = X['image']
+    testImage = testImage.to_numpy()
+    testImage = np.array([val for val in testImage])
+    testLabel = label.fit_transform(X['label'])
+    testLabel = to_categorical(testLabel)
+    testLabel = testLabel
+    y_pred = best_models[0].predict([testText,testImage])
+    return y_pred
+
+def plot_learning_curve(epochs=30):
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(20, 1 * 6), dpi=100)
+    # Classification Report curve
+    sns.lineplot(x=np.arange(1, epochs + 1), y=best_models[0].history.history['accuracy'],palette=['b'], ax=axes[0][0],label='train_accuracy')
+    sns.lineplot(x=np.arange(1, epochs + 1), y=best_models[0].history.history['val_accuracy'],palette=['r'], ax=axes[0][0],label='val_accuracy')       
+    axes[0][0].legend()
+    # Loss curve
+    sns.lineplot(x=np.arange(1, epochs + 1), y=best_models[0].history.history['loss'],palette=['b'], ax=axes[0][1], label='train_loss')
+    sns.lineplot(x=np.arange(1, epochs + 1), y=best_models[0].history.history['val_loss'],palette=['r'], ax=axes[0][1], label='val_loss')
+    axes[0][1].legend() 
+    for j in range(2):
+        axes[0][j].set_xlabel('Epoch', size=12)
+    plt.savefig('courbes_Accuracy_loss.png')
+    plt.show()
+def confusionMatrix(y_test,y_pred):
+    cm = confusion_matrix(y_test,y_pred)
+    class_names = ['fake','real']
+    #Transform to df for easier plotting
+    cm_df = pd.DataFrame(cm)
+    final_cm = cm_df
+    plt.figure(figsize = (5,5))
+    sns.heatmap(final_cm, annot = True,cmap="YlGnBu",cbar=False,fmt='d')
+    plt.title('Confusion matrix', y=1.1)
+    plt.ylabel('Actual class')
+    plt.xlabel('Prediction class')
+    plt.savefig('ConfusionMatrice.png')
+    plt.show()
+
+def plotCurve(y_test,y_pred):
+    #define metrics
+    fpr, tpr, _ = metrics.roc_curve(y_test, y_pred)
+    auc = metrics.roc_auc_score(y_test, y_pred)
+    #create ROC curve
+    plt.plot(fpr,tpr,color='red',label="AUC="+str(auc))
+    plt.plot([0, 1], [0, 1], color='green')
+    plt.ylabel('True Positive Rate')
+    plt.xlabel('False Positive Rate')
+    plt.legend(loc=4)
+    plt.savefig('ROC_Curve.png')
+    plt.show()
+################# FIN DEFINTION DES FONCTIONS ##########
+
+dfTrain = pd.read_csv('data_nettoyerTrain.csv')
+dfTest = pd.read_csv('data_nettoyerTest.csv')
+
+################ IMAGES INSERTION ################
+dataImageDev = pd.DataFrame(columns=['nomImage','image','label'])
+dataImageTest = pd.DataFrame(columns=['nomImage','image','label'])
+
+textListe = []
+imageListe = []
+labelImage = []
+labelText = []
+#Former un dataframe les images et le label
+i=0
+j=0
+repDev=glob.glob('MediaEval2016/DevImages/*')
+
+while i < len(repDev):
+  try:
+    img2 = cv.imread(repDev[i])
+    imgResize = cv.resize(img2, (224,224))
+    chemin= repDev[i].split("/")
+    imgName = chemin[len(chemin)-1]
+    imgName=imgName.replace(" ", "")
+    nb = len(imgName)-4
+    dataImageDev.loc[i] = [imgName[:nb],imgResize,0]
+  except:
+    pass
+  i=i+1
+
+dataImageTextDev = pd.DataFrame(columns=['text','nomImage','image','label'])
+dataImageTextTest = pd.DataFrame(columns=['text','nomImage','image','label'])
+imageListe=[]
+labelImage=[]
+textListe=[]
+k=0
+j=0
+i=0
+while i <len(dfTrain):
+  #name=dataOtre.loc[i,'imageId(s)']
+  name = dfTrain['imageId(s)'][i]
+  trouver=0
+  for index, valeur in dataImageDev['nomImage'].items():
+    if(name == valeur):
+      trouver=1
+      tweetClean = dfTrain['tweetText'][i]
+      dataImageTextDev.loc[k]=[str(tweetClean),name,dataImageDev['image'][index],dfTrain['label'][i]]
+      k=k+1
+  i=i+1
+
+i=0
+while i <len(dfTest):
+  name = dfTest['imageId(s)'][i]
+  trouver=0
+  for index, valeur in dataImageDev['nomImage'].items():
+    if(name == valeur):
+      trouver=1
+      tweetClean = dfTest['tweetText'][i]
+      dataImageTextTest.loc[k]=[str(tweetClean),name,dataImageDev['image'][index],dfTest['label'][i]]
+      k=k+1
+  i=i+1
+
+################ FIN IMAGES INSERTION ##############
+
+############### RESUME DU MODEL  #############
+model = fake_virtual(bert_layer, max_len=max_len)
+model.summary()
+plot_model(model, to_file='model_plot.png', show_shapes=True, show_layer_names=True)
+############### FIN RESUME DU MODEL  #############
+
+############# ENTRAINEMENT DU MODEL ##########
+i=0
+kf = KFold(n_splits=5, shuffle=True)
+save_dir = '/saved_models/'
+fold_var = 1
+max_len=26
+result = []
+scores_loss = []
+scores_acc = []
+scores_pre = []
+scores_rap = []
+fold_var = 0
+
+for train_indices, val_indices in kf.split(dataImageTextDev):
+    train = dataImageTextDev.iloc[train_indices]
+    val = dataImageTextDev.iloc[val_indices]
+    label = preprocessing.LabelEncoder()
+
+    trainText = bert_encode(train['text'], tokenizer, max_len=max_len)
+    trainImage = train['image']
+    trainImage = trainImage.to_numpy()
+    # Conversion
+    trainImage = np.array([val for val in trainImage])
+    trainLabel = label.fit_transform(train['label'])
+    trainLabel = to_categorical(trainLabel)
+    labels = label.classes_
+
+    valText = bert_encode(val['text'], tokenizer, max_len=max_len)
+    valImage = val['image']
+    valImage = valImage.to_numpy()
+    valImage = np.array([val for val in valImage])
+    valLabel = label.fit_transform(val['label'])
+    valLabel = to_categorical(valLabel)
+    valLabel = valLabel
+
+    print(fold_var)
+    file_path = save_dir+'model_'+str(fold_var)+".hdf5"
+    checkpoint = tf.keras.callbacks.ModelCheckpoint(file_path, monitor='loss', verbose=0, save_best_only=True, mode='min')
+    earlystopping = tf.keras.callbacks.EarlyStopping(monitor="loss", mode="min", patience=8)
+    callbacks_list = [checkpoint,earlystopping]
+    hist = model.fit(x=[trainText,trainImage],y=trainLabel,epochs=30,batch_size=70,validation_data=([valText, valImage], valLabel), callbacks=callbacks_list, verbose=1)
+    model.load_weights(file_path)
+    score = model.evaluate([valText, valImage],valLabel, verbose=0)
+    scores_loss.append(score[0])
+    scores_acc.append(score[1])
+    scores_pre.append(score[2])
+    scores_rap.append(score[3])
+    #result.append(model.predict([testText,testImage]))
+    tf.keras.backend.clear_session()
     fold_var += 1
-    
+value_min = min(scores_loss)
+value_index = scores_loss.index(value_min)
+model.load_weights(save_dir+'model_'+str(value_index)+".hdf5")
+best_model = model
+best_models.append(best_model)
+best_model.save_weights('model_weights.h5')
+best_model.save('model_keras.h5')
+############# FIN ENTRAINEMENT DU MODEL ##########
+testText = bert_encode(dataImageTextTest['text'], tokenizer, max_len=max_len)
+testImage = dataImageTextTest['image']
+testImage = testImage.to_numpy()
+testImage = np.array([val for val in testImage])
+testLabel = label.fit_transform(dataImageTextTest['label'])
+testLabel = to_categorical(testLabel)
+testLabel = testLabel
 
-print(VALIDATION_ACCURACY)
-print(VALIDATION_LOSS)
-
-'''
-print(len(labelText))
-print(len(textListe))
-modellstmP = fake_virtual()
-modellstmP.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer='adam', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='rappel')])
-modellstmP.fit([myTrain_Glove,imageListe], y,batch_size=60, epochs=10, verbose=1)
-
-model = KerasClassifier(model=modellstmP, verbose=0)
-batch_size = [5, 10]
-epochs = [5, 10]
-param_grid = dict(batch_size=batch_size, epochs=epochs)
-#grid = GridSearchCV(estimator=model, param_grid=param_grid,cv=3)
-grid = GridSearchCV(
-    estimator=model,
-    param_grid=param_grid,
-    scoring='roc_auc',
-    n_jobs=4,
-    cv=5,
-    refit=True,
-    return_train_score=True
-)
-print("DEBUT GRIDSEARCH ...")
-grid_result = grid.fit(myTrain_Glove, y)
-print("####  summarize results1 ####")
-print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
-means = grid_result.cv_results_['mean_test_score']
-stds = grid_result.cv_results_['std_test_score']
-params = grid_result.cv_results_['params']
-for mean, stdev, param in zip(means, stds, params):
-    print("%f (%f) with: %r" % (mean, stdev, param))
-
-print("####  summarize results2 ####")
-# Read the cv_results property into adataframe & print it out
-cv_results_df = pd.DataFrame(grid_result.cv_results_)
-print(cv_results_df)
-
-# Extract and print the column with a dictionary of hyperparameters used
-column = cv_results_df.loc[:, ["params"]]
-print(column)
-
-# Extract and print the row that had the best mean test score
-best_row = cv_results_df[cv_results_df['rank_test_score'] == 1]
-print(best_row)
-'''
+############ DEBUT GRAPHES ET COURBES #############
+plot_learning_curve()
+y_pred = predictModel([testText,testImage])
+confusionMatrix(testLabel,y_pred)
+plotCurve(testLabel,y_pred)
+############ FIN DEBUT GRAPES ET COURBES #############
