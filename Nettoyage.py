@@ -1,6 +1,9 @@
 import re
+import nltk
+nltk.download('wordnet')
+from nltk.stem.wordnet import WordNetLemmatizer
 def clean(tweet): 
-            
+    myLem = WordNetLemmatizer()
     # Special characters
     tweet = re.sub(r"\x89Û_", "", tweet)
     tweet = re.sub(r"\x89ÛÒ", "", tweet)
@@ -708,19 +711,6 @@ def clean(tweet):
     tweet = re.sub(r"JoelHeyman", "Joel Heyman", tweet)
     tweet = re.sub(r"viaYouTube", "via YouTube", tweet)
            
-    # Urls
-    tweet = re.sub(r"https?:\/\/t.co\/[A-Za-z0-9]+", "", tweet)
-        
-    # Words with punctuations and special characters
-    punctuations = '@#!?+&*[]-%.:/();$=><|{}^' + "'`"
-    for p in punctuations:
-        tweet = tweet.replace(p, f' {p} ')
-        
-    # ... and ..
-    tweet = tweet.replace('...', ' ... ')
-    if '...' not in tweet:
-        tweet = tweet.replace('..', ' ... ')      
-        
     # Acronyms
     tweet = re.sub(r"MH370", "Malaysia Airlines Flight 370", tweet)
     tweet = re.sub(r"mÌ¼sica", "music", tweet)
@@ -740,4 +730,52 @@ def clean(tweet):
     tweet = re.sub(r"Bestnaijamade", "bestnaijamade", tweet)
     tweet = re.sub(r"SOUDELOR", "Soudelor", tweet)
     
+    emojis = {':)': 'smile', ':-)': 'smile', ';d': 'wink', ':-E': 'vampire', ':(': 'sad', 
+          ':-(': 'sad', ':-<': 'sad', ':P': 'raspberry', ':O': 'surprised',
+          ':-@': 'shocked', ':@': 'shocked',':-$': 'confused', ':\\': 'annoyed', 
+          ':#': 'mute', ':X': 'mute', ':^)': 'smile', ':-&': 'confused', '$_$': 'greedy',
+          '@@': 'eyeroll', ':-!': 'confused', ':-D': 'smile', ':-0': 'yell', 'O.o': 'confused',
+          '<(-_-)>': 'robot', 'd[-_-]b': 'dj', ":'-)": 'sadsmile', ';)': 'wink', 
+          ';-)': 'wink', 'O:-)': 'angel','O*-)': 'angel','(:-D': 'gossip', '=^.^=': 'cat'}
+    
+    #html=re.compile(r'<.*?>')
+    #tweet = html.sub(r'',tweet)
+    emoji_pattern = re.compile("["
+                               u"\U0001F600-\U0001F64F"  # emoticons
+                               u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+                               u"\U0001F680-\U0001F6FF"  # transport & map symbols
+                               u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
+                               u"\U00002702-\U000027B0"
+                               u"\U000024C2-\U0001F251"
+                               "]+", flags=re.UNICODE)
+    tweet = emoji_pattern.sub(r'', tweet)
+    # Urls
+    #tweet = re.sub(r"https?:\/\/t.co\/[A-Za-z0-9]+", "", tweet)
+        
+    # Words with punctuations and special characters
+    tweet = re.sub(r"[^a-zA-Z0-9]"," ",tweet)
+    tweet = " ".join(tweet.split()) 
+    # ... and ..
+    urlPattern        = r"((http://)[^ ]*|(https://)[^ ]*|( www\.)[^ ]*)"
+    userPattern       = '@[^\s]+'
+    alphaPattern      = "[^a-zA-Z0-9]"
+    sequencePattern   = r"(.)\1\1+"
+    seqReplacePattern = r"\1\1"
+    
+    tweet = tweet.lower()
+    # Replace all emojis.
+    for emoji in emojis.keys():
+        tweet = tweet.replace(emoji, "EMOJI" + emojis[emoji])        
+          
+    # Replace 3 or more consecutive letters by 2 letter.
+    tweet = re.sub(sequencePattern, seqReplacePattern, tweet)
+    tweetwords = ''
+    for w in tweet.split():
+        #if word not in stopwordlist:
+        if len(w)>1:
+            word = myLem.lemmatize(w)
+            tweetwords += (word+' ')
+        else :
+            tweetwords += (w+' ')
+    tweet = " ".join(tweet.split())
     return tweet
